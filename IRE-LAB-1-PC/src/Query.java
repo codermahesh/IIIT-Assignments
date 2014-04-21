@@ -15,15 +15,15 @@ public class Query
 	/**
 	 * @param args
 	 */
-	
+
 	public static void main(String[] args) 
 	{
 		/*Query*/
-		
+
 		try
 		{
 			String index_folder =args[0];
-					
+
 			StopWordHandler swh = new StopWordHandler();
 			swh.initalizeHashSet("stoplist");
 
@@ -39,40 +39,40 @@ public class Query
 			String query =stem.toString();
 
 			//System.out.println(query);
-			
+
 			if(swh.isStopWord(query))
 			{
 				System.out.println();
 				System.exit(0);
 			}
-			
+
 			/*Get all  files*/
 			File folder = new File(index_folder);
 			File files[] = folder.listFiles();
-			
+
 			ArrayList<Integer> list = new ArrayList<Integer>();
-			
-			
+
+			BufferedReader reader;
 			for(File F : files)
 			{
-				BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(F)));
-				
+				reader = new BufferedReader(new InputStreamReader(new FileInputStream(F)));
+
 				String line=reader.readLine();
-				
+
 				while(line!=null)
 				{
 					String[] record =line.split(" ");
 					if(record[0].equals(query))
 					{
-						
+
 						for(int i=1;i<record.length;i++)							
 							list.add(Integer.parseInt(record[i]));
-						
+
 					}
 					line = reader.readLine();
 				}
 			}
-			
+
 			if(list.size() ==0 )
 			{
 				System.out.println();
@@ -88,7 +88,7 @@ public class Query
 		{
 			e.printStackTrace();
 		}
-		
+
 	}
 
 }

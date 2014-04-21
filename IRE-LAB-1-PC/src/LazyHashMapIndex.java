@@ -1,22 +1,25 @@
 
-import java.util.TreeMap;
-import java.util.Set;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
+import java.util.Set;
+import java.util.TreeMap;
 
 
 public class LazyHashMapIndex 
 {
-	private final int MAXFILEBUFF=10000;  //After this many words file will be written
+	private final int MAXFILEBUFF=7000;  //After this many words file will be written
 	private final int MAXENTRIES= 1500000;//2800000 ; // As per sample file words; which where around 29L
 
 	public static TreeMap<String , TreeMap<Integer , Integer[]>> wordmap = new TreeMap<String , TreeMap<Integer , Integer[]>>();
 
-	
+
 	public int count_node1,count_node2;	
 	public static BufferedWriter bw ;
-	
+
 	static int filecount=0;
+	static int foldercount=0;
+	
 	private StringBuilder indexFolder;
 
 
@@ -26,6 +29,7 @@ public class LazyHashMapIndex
 		this.indexFolder= new StringBuilder(indexFolder);
 		this.indexFolder.append("/");
 	}
+
 
 	public void putWord(String word,Integer doc,int loc)
 	{
@@ -40,11 +44,11 @@ public class LazyHashMapIndex
 			{
 				temparr[i]=0;
 			}	
-			
+
 			temparr[loc]=1;
 
 			TreeMap<Integer,Integer[]> tempval= new TreeMap<Integer,Integer[]>();
-			
+
 			tempval.put(doc, temparr);
 			wordmap.put(word, tempval);
 
@@ -66,7 +70,79 @@ public class LazyHashMapIndex
 				{
 					temparr[i]=0;
 				}
-				
+
+				temparr[loc]=1;
+
+				temp.put(doc, temparr);
+
+
+				count_node2++;
+			}
+			//Word Present Doc Present
+			else
+			{
+				//System.out.println("\n\nword present doc present" + word);
+				temp.get(doc)[loc]++;
+
+			}
+		}
+
+	}
+
+	/* Enum rated version of putword*/
+
+	public void putWord(String word,Integer doc,BlockIdentifier bid)
+	{
+		int loc=0;
+
+		switch(bid)
+		{
+		case TITLE: loc=0; break;
+		case INFO: loc=1; break;
+		case OUTLINK: loc=2; break;
+		case CATEGORY: loc=3; break;
+		case TEXT: loc=4; break;		
+		}
+
+
+		//System.out.println("Word"+ word + doc+loc);
+		//Word not present
+		if(!wordmap.containsKey(word))
+		{
+			//System.out.println("\n\nword not present" + word);
+
+			Integer[] temparr = new Integer[5];
+			for(int  i=0;i< 5 ;i++)
+			{
+				temparr[i]=0;
+			}	
+
+			temparr[loc]=1;
+
+			TreeMap<Integer,Integer[]> tempval= new TreeMap<Integer,Integer[]>();
+
+			tempval.put(doc, temparr);
+			wordmap.put(word, tempval);
+
+			count_node1++;
+			count_node2++;
+		}
+
+		else
+		{
+			//Word present doc not present
+			TreeMap<Integer,Integer[]> temp;
+			temp=wordmap.get(word);
+			if(!temp.containsKey(doc))
+			{
+				//System.out.println("\n\nword  present" + word);
+				Integer[] temparr = new Integer[5];
+
+				for(int  i=0;i< 5 ;i++)
+				{
+					temparr[i]=0;
+				}
+
 				temparr[loc]=1;
 
 				temp.put(doc, temparr);
@@ -124,6 +200,8 @@ public class LazyHashMapIndex
 		 }
 	 }*/
 
+	
+	
 	public void writeMap()
 	{
 		if(wordmap.size()<=0)
@@ -139,7 +217,8 @@ public class LazyHashMapIndex
 		{
 			
 			bw = new BufferedWriter(new FileWriter(indexFolder.toString()+filecount+".idx"));
-			System.out.println("INDEX FILE:" + +filecount);
+			System.out.println("INDEX FILE:"+filecount+".idx");
+			
 			for(String i : wordset)
 			{
 				sb.append(i + " ");
@@ -151,10 +230,12 @@ public class LazyHashMapIndex
 				{
 					intarr=inner.get(j);
 
-					//sb.append( Integer.toHexString(j).toLowerCase());
-					sb.append(Integer.toString(j));
-/*** CHANGE ***/
-/*					if(intarr[0]>0)
+					sb.append( Integer.toHexString(j).toLowerCase());
+					//sb.append(Integer.toString(j));
+					
+					
+					/*** noCHANGE ***/
+					if(intarr[0]>0)
 						sb.append("T"+intarr[0]);
 					if(intarr[1]>0)
 						sb.append("I"+ intarr[1]);
@@ -164,13 +245,13 @@ public class LazyHashMapIndex
 						sb.append("C" + intarr[3]);
 					if(intarr[4]>0)
 						sb.append("X"+ intarr[4]);
-*/
+					 
 					//sb.append(j+ "T" +inner.get(j)[0] +"I"+ inner.get(j)[1] +"O"+ inner.get(j)[2] +"C"+ inner.get(j)[3]+"X"+ inner.get(j)[4]+ "|");
 					//System.out.println(sb);
 
-					/******** Change *******/
-					//sb.append("|");
-					sb.append(" ");
+					/******** noChange *******/
+					sb.append("|");
+					
 				}
 				sb.append('\n');
 

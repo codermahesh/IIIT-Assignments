@@ -6,8 +6,9 @@ public class Indexer extends Thread
 	private Stemmer stemmer;
 	private StopWordHandler stopwordMap;
 	private LazyHashMapIndex index;
-	
-	private Parser parentParser;
+	private kWayMerge km;
+	private TitleIndexGenrator tig;
+	private ExitInformer ei;
 	
 	
 	/*****  BUFFERS ****/
@@ -22,17 +23,19 @@ public class Indexer extends Thread
 	
 	/** Counters***/
 	int pageCount;
-	
-	public Indexer(PageBufferQueue sharedqueue,String stoplistFileName,Parser p,String outputFolder)
+	String outputFolder;
+	public Indexer(PageBufferQueue sharedqueue,String stoplistFileName,ExitInformer ei,String outputFolder)
 	{
 		this.setName("INDEXER_THREAD");
 		this.sharedQueue =sharedqueue;
-		parentParser=p;		
-		
+		this.ei = ei;		
+		this.outputFolder=outputFolder;
 		stopwordMap = new  StopWordHandler();
 		stopwordMap.initalizeHashSet(stoplistFileName);
 		stemmer = new Stemmer();
 		index  = new LazyHashMapIndex(outputFolder);
+		tig = new TitleIndexGenrator(outputFolder+"/TitleIndexP", outputFolder+"/TitleIndexS");
+		km= new kWayMerge(outputFolder);
 		pageCount=0;
 	}
 	
@@ -48,13 +51,14 @@ public class Indexer extends Thread
 	}
 	public void run()
 	{
-		while(!parentParser.hasParserStopped())
+		while(ei.isExited())
 		{
 			currentPageBuffer = sharedQueue.remove();
 			pageCount++;
 			documentId=currentPageBuffer.documentId;
 			initBuffers();
-			processIndex();
+			//processIndex();
+			processIndexRefactor();
 			index.lazyWrite();
 		}
 
@@ -64,113 +68,70 @@ public class Indexer extends Thread
 			pageCount++;
 			documentId=currentPageBuffer.documentId;
 			initBuffers();
-			processIndex();
+			//processIndex();
+			processIndexRefactor();
 			index.lazyWrite();
 		}
 		
-		System.out.println("Parser Pages Consumed:" + pageCount);
+		System.out.println(Thread.currentThread().getName()+" Parser Pages Consumed:" + pageCount);
 		
 		/*FLSUH index to file*/
 		index.writeMap();
+		tig.finalwrite();
+		/*Create Final Index*/
+		km.buildIndex(outputFolder+"/final.fdx");
+		
 	}
 	/* TODO Thread it or class it*/
 	
 	/* Function  to create words into  map */
 	
-	private void processIndex()
+	private void processIndexRefactor()
 	{
 		try
 		{
-		
-			/*Split-remove stopwords-stem-add to index*/
+			tig.AddEntry(Integer.toHexString(currentPageBuffer.documentId), titleBuffer.toString());
+			processIndexStringBuffer(titleBuffer, BlockIdentifier.TITLE);
+			processIndexStringBuffer(infoboxBuffer, BlockIdentifier.INFO);
+			processIndexStringBuffer(outlinkBuffer, BlockIdentifier.OUTLINK);
+			processIndexStringBuffer(categoryBuffer, BlockIdentifier.CATEGORY);
+			processIndexStringBuffer(textBuffer, BlockIdentifier.TEXT);
 			
-			//  TITLE BUFFER
-			String[] tokens = titleBuffer.toString().split("[  :,\n\t\\.-]+");
-			titleBuffer.setLength(0);
-			for(int i=0;i<tokens.length;i++)
-			{
-				if(!stopwordMap.isStopWord(tokens[i]) && tokens[i].matches("[a-z]+"))
-				{
-					stemmer.add(tokens[i].toCharArray(),tokens[i].length());
-					stemmer.stem();
-					if(!stopwordMap.isStopWord(stemmer.toString()))
-					{
-						index.putWord(stemmer.toString(), documentId, 0);
-					}
-				}
-			}
-			
-			tokens = infoboxBuffer.toString().split("[  :,\n\t\\.-]+");
-			infoboxBuffer.setLength(0);
-			for(int i=0;i<tokens.length;i++)
-			{
-				if(!stopwordMap.isStopWord(tokens[i]) && tokens[i].matches("[a-z]+"))
-				{
-					stemmer.add(tokens[i].toCharArray(),tokens[i].length());
-					stemmer.stem();
-					if(!stopwordMap.isStopWord(stemmer.toString()))
-					{
-						index.putWord(stemmer.toString(), documentId, 1);
-					}
-				}
-				
-			}
-			
-			// outlink
-			
-			tokens = outlinkBuffer.toString().split("[  :,\n\t\\.-]+");
-			outlinkBuffer.setLength(0);
-			for(int i=0;i< tokens.length;i++)
-			{
-				if(!stopwordMap.isStopWord(tokens[i]) && tokens[i].matches("[a-z]+"))
-				{
-					stemmer.add(tokens[i].toCharArray(),tokens[i].length());
-					stemmer.stem();
-					if(!stopwordMap.isStopWord(stemmer.toString()))
-					{
-						index.putWord(stemmer.toString(), documentId, 2);
-					}
-				}
-			}
-			
-			//Category
-			
-			tokens = categoryBuffer.toString().split("[  :,\n\t\\.-]+");
-			categoryBuffer.setLength(0);
-			for(int i=0;i<tokens.length;i++)
-			{
-				if(!stopwordMap.isStopWord(tokens[i]) && tokens[i].matches("[a-z]+"))
-				{
-					stemmer.add(tokens[i].toCharArray(), tokens[i].length());
-					stemmer.stem();
-					if(!stopwordMap.isStopWord(stemmer.toString()))
-					{
-						index.putWord(stemmer.toString(), documentId, 3);
-					}
-				}
-			}
-			
-			
-			// Content 
-			tokens = textBuffer.toString().split("[  :,\n\t\\.-]+");
-			textBuffer.setLength(0);
-			for(int i=0;i<tokens.length;i++)
-			{
-				if(!stopwordMap.isStopWord(tokens[i]) && tokens[i].matches("[a-z]+"))
-				{
-					stemmer.add(tokens[i].toCharArray(),tokens[i].length());
-					stemmer.stem();
-					if(!stopwordMap.isStopWord(stemmer.toString()))
-					{
-						index.putWord(stemmer.toString(), documentId, 4);
-					}
-				}
-			}
+
 		}
 		catch(Exception e)
 		{
 			e.printStackTrace();
 		}
 	}
+	
+	
+	private void processIndexStringBuffer(StringBuffer inBuffer, BlockIdentifier bid)
+	{
+		try
+		{
+			String[] tokens = inBuffer.toString().split("[  :,\n\t\\.-]+");
 
+			inBuffer.setLength(0);
+			
+			for(int i=0;i<tokens.length;i++)
+			{
+				if(!stopwordMap.isStopWord(tokens[i]) && tokens[i].matches("[a-z]+"))
+				{
+					stemmer.add(tokens[i].toCharArray(),tokens[i].length());
+					stemmer.stem();
+					if(!stopwordMap.isStopWord(stemmer.toString()))
+					{
+						index.putWord(stemmer.toString(), documentId, bid);
+					}
+				}
+			}
+			
+			
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace();
+		}
+	}
 }

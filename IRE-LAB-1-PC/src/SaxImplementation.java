@@ -1,6 +1,3 @@
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
@@ -78,8 +75,8 @@ public class SaxImplementation extends DefaultHandler
 	{	
 		
 		endedAt =System.currentTimeMillis();	
-		System.out.println("TIME:"+ (endedAt-startedAt) / 1000);
-		System.out.println("Pages:"+pageCount);
+		System.out.println(Thread.currentThread().getName()+" Parse TIME:"+ (endedAt-startedAt) / 1000);
+		System.out.println(Thread.currentThread().getName()+"Parsed Pages:"+pageCount);
 	}
 
 	void getPageBuffer()
@@ -93,14 +90,17 @@ public class SaxImplementation extends DefaultHandler
 		infoboxBuffer=currentPageBuffer.infoboxBuffer;
 		categoryBuffer=currentPageBuffer.categoryBuffer;
 	}
+	
+	
 	@Override
 	public void startElement(String uri, String localName,String qName, Attributes attributes) throws SAXException 
 	{
+		
 		//System.out.println("StartElement");
 		if(qName.equalsIgnoreCase("page"))
 		{
 			isPage=true;
-			/*GET PAGE BUFFER*/
+			//GET PAGE BUFFER
 			getPageBuffer();
 		}
 		else if (qName.equalsIgnoreCase("title"))
@@ -109,8 +109,7 @@ public class SaxImplementation extends DefaultHandler
 		}
 		else if(qName.equalsIgnoreCase("id") && !isRevision)
 		{
-			isId=true;
-			
+			isId=true;			
 		}
 		else if(qName.equalsIgnoreCase("revision"))
 		{
@@ -121,6 +120,7 @@ public class SaxImplementation extends DefaultHandler
 			isText=true;
 		}	
 
+		
 	}
 
 	@Override
@@ -156,6 +156,7 @@ public class SaxImplementation extends DefaultHandler
 			//isRevision=false;
 		}
 
+		
 	}
 
 
@@ -168,10 +169,13 @@ public class SaxImplementation extends DefaultHandler
 		/*** Remove Category ****/
 		int location,textStart,textEnd,catStart,catEnd,i;
 
-		String temporary="";
-
+		//String temporary="";
+		
+		StringBuffer temporary= new StringBuffer();
+		
 		location=0;
 		textStart=0;
+		
 		textEnd=textBuffer.length();
 		try
 		{
@@ -187,7 +191,11 @@ public class SaxImplementation extends DefaultHandler
 
 				catStart=location ;
 				location = textBuffer.indexOf("]]",location);
-				catEnd =location +1;
+				
+				if(location == -1)
+					catEnd = textBuffer.length();
+				else
+					catEnd =location +1;
 
 				for(i=location -1 ;i > catStart ; i--)
 				{
@@ -197,7 +205,7 @@ public class SaxImplementation extends DefaultHandler
 							&& textBuffer.charAt(i)!='|'
 							&& textBuffer.charAt(i)!='[')
 					{
-						temporary = textBuffer.charAt(i) +temporary;
+						temporary.append(textBuffer.charAt(i));
 					}
 					else
 					{
@@ -207,7 +215,8 @@ public class SaxImplementation extends DefaultHandler
 				}
 				//category found 
 				//System.out.println("Category Found:"+temporary);
-				categoryBuffer.append(temporary+ " ");
+				categoryBuffer.append(temporary);
+				categoryBuffer.append(" ");
 
 				textBuffer.delete(catStart, catEnd);
 				textEnd =textBuffer.length();
@@ -224,7 +233,8 @@ public class SaxImplementation extends DefaultHandler
 		try
 		{
 			location = textStart;
-			temporary="";
+			//temporary="";
+			temporary.setLength(0);
 			textEnd=textBuffer.length();
 
 			while(location <=textEnd)
@@ -246,19 +256,22 @@ public class SaxImplementation extends DefaultHandler
 							&& textBuffer.charAt(i) != '|'
 							&& textBuffer.charAt(i) != '['
 							)
-						temporary= textBuffer.charAt(i)+temporary;
+						temporary.append(textBuffer.charAt(i));
 					else
 						break;
 				}
 
-				outlinkBuffer.append(temporary + " ");
-
+				outlinkBuffer.append(temporary);
+				outlinkBuffer.append(" ");
+				
 				if(catStart < 0 || catEnd > textBuffer.length())
 				{
 					continue;
 				}
 
-				temporary="";
+				//temporary="";
+				temporary.setLength(0);
+				
 				textBuffer.delete(catStart, catEnd);
 				textEnd =textBuffer.length();
 				location = catStart;
@@ -301,26 +314,7 @@ public class SaxImplementation extends DefaultHandler
 
 	}
 
-	/*  Function process individual words 
-	 */
 	
-	private class WordProcessor
-	{
-		Pattern pat;
-		public WordProcessor() 
-		{
-			this.pat=Pattern.compile("[^\t\n\f\ra-zA-Z\\. -]");
-		}
-		
-	    private void process(StringBuffer x)
-	    {
-	    	String temporary = new String();
-			Matcher mat  = pat.matcher(x);
-			temporary =mat.replaceAll(" ").toLowerCase();
-			x.setLength(0);
-			x.append(temporary);
-	    }
-	}
 	private void processWords()
 	{
 		/** Remove Special Characters, non-ascii, hyperlinks
@@ -328,45 +322,16 @@ public class SaxImplementation extends DefaultHandler
 		 **/
 		try
 		{
-
-			WordProcessor wp = new WordProcessor();
+			WordProcessor wp = WordProcessorFactory.getWordProcessor();
 			wp.process(infoboxBuffer);
 			wp.process(textBuffer);
 			wp.process(categoryBuffer);
 			wp.process(outlinkBuffer);
 			wp.process(titleBuffer);
 			
-			
-			
-/*			String temporary = new String();
-			Pattern pat  = Pattern.compile("[^\t\n\f\ra-zA-Z\\. -]");
-			Matcher mat  = pat.matcher(infoboxBuffer);
-			temporary = mat.replaceAll(" ").toLowerCase();
-			infoboxBuffer.setLength(0);
-			infoboxBuffer.append(temporary);
-			
-			mat = pat.matcher(textBuffer);
-			temporary =mat.replaceAll(" ").toLowerCase();
-			textBuffer.setLength(0);
-			textBuffer.append(temporary);
-			
-			mat = pat.matcher(categoryBuffer);
-			temporary = mat.replaceAll(" ").toLowerCase();
-			categoryBuffer.setLength(0);
-			categoryBuffer.append(temporary);
-			
-			mat = pat.matcher(titleBuffer);
-			temporary = mat.replaceAll(" ").toLowerCase();
-			titleBuffer.setLength(0);
-			titleBuffer.append(temporary);
-			
-			mat = pat.matcher(outlinkBuffer);
-			temporary =mat.replaceAll(" ").toLowerCase();
-			outlinkBuffer.setLength(0);
-			outlinkBuffer.append(temporary);
-			
-*/			//System.out.println(textBuffer);
-		}catch(Exception e)
+			//System.out.println(textBuffer);
+		}
+		catch(Exception e)
 		{
 			e.printStackTrace();
 		}

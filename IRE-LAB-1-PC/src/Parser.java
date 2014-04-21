@@ -11,20 +11,17 @@ public class Parser extends Thread
 {
 	private PageBufferQueue sharedQueue;
 	private String fileName;
-	private boolean stopFlag;
+
+	private ExitInformer ei;
 	
-	public Parser(String filename,PageBufferQueue sharedqueue)
+	public Parser(String filename,PageBufferQueue sharedqueue,ExitInformer ei)
 	{
+		this.ei=ei;
 		this.fileName=filename;
 		this.sharedQueue =sharedqueue;
-		this.stopFlag=false;
 		this.setName("PARSER_THREAD");
 	}
 
-	public boolean hasParserStopped()
-	{
-		return stopFlag;
-	}
 	
 	public void run()
 	{
@@ -41,7 +38,7 @@ public class Parser extends Thread
 			reader.parse(new InputSource(file));			
 			
 			/** IMPORTANT **/
-			stopFlag=true;
+			ei.setExit();
 
 		} catch (SAXException | IOException e) 
 		{

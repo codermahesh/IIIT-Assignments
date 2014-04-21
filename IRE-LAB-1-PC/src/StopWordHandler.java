@@ -17,9 +17,10 @@ public class StopWordHandler
 	
 	public int initalizeHashSet(String stopfile) 
 	{
+		BufferedReader fh;
 		try
 		{
-			BufferedReader fh = new BufferedReader(new FileReader(stopfile));
+			fh = new BufferedReader(new FileReader(stopfile));
 			String s= fh.readLine();
 			while(s!=null)
 			{

@@ -4,7 +4,7 @@
 
 public class PageBufferQueue 
 {
-	private final int PAGEBUFFER_SIZE=5;
+	private final int PAGEBUFFER_SIZE=3;
 	private int rear,front;
 	private PageBuffer pageBufferArray[];
 	
@@ -23,7 +23,7 @@ public class PageBufferQueue
 			front++;
 			rear++;
 			pageBufferArray[rear++]=x;
-			
+			notifyAll();  //  DO NOT FORGET BOSSSSSS
 		}
 		else
 		{
